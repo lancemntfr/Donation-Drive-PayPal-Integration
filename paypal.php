@@ -29,8 +29,11 @@ function generateAccessToken() {
     return $json["access_token"];
 }
 
-function createOrder() {
+function createOrder($usdAmount) {
     $token = generateAccessToken();
+
+    // Ensure amount is properly formatted to 2 decimal places
+    $amount = number_format((float)$usdAmount, 2, '.', '');
 
     $data = [
         "intent" => "CAPTURE",
@@ -38,7 +41,7 @@ function createOrder() {
             [
                 "amount" => [
                     "currency_code" => "USD",
-                    "value" => "15.00"
+                    "value" => $amount
                 ]
             ]
         ]
@@ -82,16 +85,33 @@ function captureOrder($orderId) {
     return json_decode($response, true);
 }
 
-if (isset($_GET["action"])) {
-    header("Content-Type: application/json");
+header("Content-Type: application/json");
 
+if (isset($_GET["action"])) {
     if ($_GET["action"] === "create") {
-        echo json_encode(createOrder());
+        // Get the JSON body from the request
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        if (!isset($input['amount'])) {
+            echo json_encode(["error" => "Donation amount is required"]);
+            exit;
+        }
+
+        $usdAmount = $input['amount'];
+        echo json_encode(createOrder($usdAmount));
         exit;
     }
 
-    if ($_GET["action"] === "capture" && isset($_GET["orderID"])) {
-        echo json_encode(captureOrder($_GET["orderID"]));
+    if ($_GET["action"] === "capture") {
+        // Get the JSON body from the request
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        if (!isset($input['orderID'])) {
+            echo json_encode(["error" => "Order ID is required"]);
+            exit;
+        }
+
+        echo json_encode(captureOrder($input['orderID']));
         exit;
     }
 }
